@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import {
   Loader2, Sparkles, Download, RotateCcw,
   ChevronDown, ChevronUp, SlidersHorizontal,
-  FileText, PenLine,
+  FileText, PenLine, Wand2,
 } from 'lucide-react'
 import StyleControls from '@/components/StyleControls'
 import ResumeUpload from '@/components/ResumeUpload'
@@ -27,7 +27,6 @@ export default function Home() {
   const [resume, setResume] = useState<ResumeData | null>(null)
   const [jd, setJd] = useState('')
   const [customPrompt, setCustomPrompt] = useState('')
-  const [showCustomPrompt, setShowCustomPrompt] = useState(false)
   const [loading, setLoading] = useState(false)
   const [notes, setNotes] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -233,35 +232,27 @@ export default function Home() {
           </div>
         </div>
 
-        {/* JD Input */}
+        {/* JD + Custom Prompt */}
         <div className="px-4 py-3 border-b border-gray-100 space-y-2">
           <label className="text-xs font-medium text-gray-600 uppercase tracking-wide">
             Job Description
           </label>
           <textarea
-            className="w-full h-40 text-xs border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-300"
-            placeholder="Paste JD, LinkedIn post, recruiter invite, career page text — anything describing the role…"
+            className="w-full h-32 text-xs border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-300"
+            placeholder="Paste JD, LinkedIn post, recruiter invite, career page — anything about the role…"
             value={jd}
             onChange={e => setJd(e.target.value)}
           />
 
-          {/* Custom prompt toggle */}
-          <button
-            onClick={() => setShowCustomPrompt(p => !p)}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600"
-          >
-            <PenLine size={11} />
-            {showCustomPrompt ? 'Hide custom instructions' : 'Add custom instructions'}
-          </button>
-
-          {showCustomPrompt && (
-            <textarea
-              className="w-full h-20 text-xs border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-300"
-              placeholder='e.g. "Emphasize product ownership. Keep summary under 2 sentences. Use action verbs."'
-              value={customPrompt}
-              onChange={e => setCustomPrompt(e.target.value)}
-            />
-          )}
+          <label className="text-xs font-medium text-gray-600 uppercase tracking-wide flex items-center gap-1.5">
+            <PenLine size={10} /> Custom Instructions
+          </label>
+          <textarea
+            className="w-full h-20 text-xs border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-300"
+            placeholder='Any specific asks — e.g. "Highlight leadership. Remove the Cybrom job. Keep summary under 2 lines."'
+            value={customPrompt}
+            onChange={e => setCustomPrompt(e.target.value)}
+          />
 
           {error && <p className="text-xs text-red-500">{error}</p>}
 
