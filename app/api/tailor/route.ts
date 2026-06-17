@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/db'
 import type { SkillRow, JobEntry, EducationEntry, ProjectEntry, TailorResponse } from '@/types/resume'
 
 const SYSTEM_PROMPT = `You are a professional resume writer and ATS optimization expert.
@@ -145,6 +148,15 @@ export async function POST(req: NextRequest) {
           }))
         : [],
       notes: String(p.notes ?? ''),
+    }
+
+    // Increment tailorCount for logged-in users
+    const session = await getServerSession(authOptions)
+    if (session?.user?.id) {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { tailorCount: { increment: 1 } },
+      }).catch(() => {}) // non-fatal
     }
 
     return NextResponse.json(result)

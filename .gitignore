@@ -5,3 +5,8 @@ node_modules/
 *.pem
 
 .vercel
+
+/lib/generated/prisma
+
+.env
+prisma/migrations/

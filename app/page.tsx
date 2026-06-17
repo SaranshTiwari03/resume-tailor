@@ -2,10 +2,12 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import dynamic from 'next/dynamic'
+import { useSession, signOut } from 'next-auth/react'
+import Link from 'next/link'
 import {
   Loader2, Sparkles, Download, RotateCcw,
   ChevronDown, ChevronUp, SlidersHorizontal,
-  FileText, PenLine, Wand2,
+  FileText, PenLine, LogIn, LogOut, ShieldCheck,
 } from 'lucide-react'
 import StyleControls from '@/components/StyleControls'
 import ResumeUpload from '@/components/ResumeUpload'
@@ -22,6 +24,7 @@ const RESUME_FILE_KEY = 'rbt_resume_filename'
 const RESUME_DATA_KEY = 'rbt_resume_data'
 
 export default function Home() {
+  const { data: session } = useSession()
   const [resumeText, setResumeText] = useState('')
   const [resumeFileName, setResumeFileName] = useState<string | null>(null)
   const [resume, setResume] = useState<ResumeData | null>(null)
@@ -90,7 +93,8 @@ export default function Home() {
   const handleTailor = async () => {
     if (!resumeText.trim() || !jd.trim()) return
 
-    if (freeUsed) {
+    // Logged-in users always allowed; anonymous users get 1 free
+    if (!session && freeUsed) {
       setShowAuthGate(true)
       return
     }
@@ -201,16 +205,36 @@ export default function Home() {
 
         {/* Header */}
         <div className="px-4 pt-4 pb-3 border-b border-gray-100">
-          <div className="flex items-center gap-2 mb-0.5">
-            <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center">
-              <Sparkles size={12} className="text-white" />
+          <div className="flex items-center justify-between mb-0.5">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center">
+                <Sparkles size={12} className="text-white" />
+              </div>
+              <h1 className="text-sm font-bold tracking-tight">Resume Tailor</h1>
             </div>
-            <h1 className="text-sm font-bold tracking-tight">Resume Tailor</h1>
+            {session ? (
+              <div className="flex items-center gap-2">
+                {session.user.role === 'admin' && (
+                  <Link href="/admin" className="text-[10px] text-amber-600 hover:underline flex items-center gap-0.5">
+                    <ShieldCheck size={10} /> Admin
+                  </Link>
+                )}
+                <button onClick={() => signOut()} className="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5">
+                  <LogOut size={10} /> Out
+                </button>
+              </div>
+            ) : (
+              <Link href="/login" className="text-[10px] text-blue-500 hover:underline flex items-center gap-0.5">
+                <LogIn size={10} /> Sign in
+              </Link>
+            )}
           </div>
           <p className="text-[11px] text-gray-400 mt-0.5">
-            {freeUsed
-              ? <span className="text-amber-500 font-medium">Free tailor used — sign up to continue</span>
-              : '1 free tailor · no account needed'}
+            {session
+              ? <span className="text-green-600 font-medium">{session.user.email}</span>
+              : freeUsed
+                ? <span className="text-amber-500 font-medium">Free tailor used — sign up to continue</span>
+                : '1 free tailor · no account needed'}
           </p>
         </div>
 
