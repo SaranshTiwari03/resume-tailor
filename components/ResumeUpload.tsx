@@ -1,36 +1,60 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { ClipboardPaste, X, CheckCircle2, FileText } from 'lucide-react'
+import { useState, useRef, useCallback } from 'react'
+import { Upload, FileText, Loader2, AlertCircle } from 'lucide-react'
 
 interface ResumeUploadProps {
-  onResume: (text: string) => void
+  onResume: (text: string, fileName?: string) => void
 }
 
 export default function ResumeUpload({ onResume }: ResumeUploadProps) {
-  const [text, setText] = useState('')
-  const [clipboardError, setClipboardError] = useState(false)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [dragging, setDragging] = useState(false)
+  const [parsing, setParsing] = useState(false)
+  const [parseError, setParseError] = useState<string | null>(null)
+  const [showPaste, setShowPaste] = useState(false)
+  const [pasteText, setPasteText] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const wordCount = text.trim().split(/\s+/).filter(Boolean).length
-  const isReady = wordCount >= 50
-
-  const handlePasteFromClipboard = async () => {
-    setClipboardError(false)
-    try {
-      const clipText = await navigator.clipboard.readText()
-      if (clipText.trim()) {
-        setText(clipText)
-        textareaRef.current?.focus()
-      }
-    } catch {
-      setClipboardError(true)
-      textareaRef.current?.focus()
+  const handleFile = useCallback(async (file: File) => {
+    if (file.type !== 'application/pdf') {
+      setParseError('Please upload a PDF file.')
+      return
     }
+    setParseError(null)
+    setParsing(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/parse-resume', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to parse PDF')
+      onResume(data.text, file.name)
+    } catch (e) {
+      setParseError(e instanceof Error ? e.message : 'Failed to parse PDF. Try pasting your resume text instead.')
+    } finally {
+      setParsing(false)
+    }
+  }, [onResume])
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleFile(file)
+  }, [handleFile])
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleFile(file)
   }
 
-  const handleConfirm = () => {
-    if (isReady) onResume(text.trim())
+  const handlePasteConfirm = () => {
+    const words = pasteText.trim().split(/\s+/).filter(Boolean).length
+    if (words < 50) {
+      setParseError('Resume text is too short — paste the full resume.')
+      return
+    }
+    onResume(pasteText.trim())
   }
 
   return (
@@ -39,57 +63,79 @@ export default function ResumeUpload({ onResume }: ResumeUploadProps) {
         <FileText size={26} className="text-blue-600" />
       </div>
 
-      <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">Paste your resume</h2>
-      <p className="text-sm text-gray-400 mb-1 text-center max-w-sm">
-        Open your PDF in Chrome → Select All (Ctrl+A) → Copy (Ctrl+C) → paste below
-      </p>
-      <p className="text-xs text-gray-300 mb-6 text-center">Works with any resume format</p>
+      <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">Upload your resume</h2>
+      <p className="text-sm text-gray-400 mb-8 text-center">PDF format · saved to your browser</p>
 
-      <div className="w-full max-w-lg">
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={e => setText(e.target.value)}
-          className="w-full h-64 text-xs border border-gray-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300 font-mono leading-relaxed"
-          placeholder="Paste your full resume text here..."
-        />
-
-        <div className="flex items-center justify-between mt-2 mb-3">
-          <span className="text-xs text-gray-400">
-            {wordCount > 0 ? `${wordCount} words` : ''}
-            {wordCount > 0 && wordCount < 50 ? ' — paste the full resume' : ''}
-          </span>
-          <div className="flex items-center gap-3">
-            {text && (
-              <button
-                onClick={() => setText('')}
-                className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
-              >
-                <X size={11} /> Clear
-              </button>
-            )}
-            <button
-              onClick={handlePasteFromClipboard}
-              className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1.5"
-            >
-              <ClipboardPaste size={12} /> Paste from clipboard
-            </button>
-          </div>
+      <div className="w-full max-w-md space-y-3">
+        {/* Drop zone */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragging(true) }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={onDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`
+            relative border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-colors
+            ${dragging ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'}
+            ${parsing ? 'pointer-events-none opacity-70' : ''}
+          `}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf"
+            className="hidden"
+            onChange={onFileChange}
+          />
+          {parsing ? (
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 size={28} className="text-blue-500 animate-spin" />
+              <p className="text-sm text-gray-500">Reading your resume…</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <Upload size={28} className={dragging ? 'text-blue-500' : 'text-gray-400'} />
+              <p className="text-sm font-medium text-gray-700">
+                {dragging ? 'Drop it here' : 'Drag & drop your PDF here'}
+              </p>
+              <p className="text-xs text-gray-400">or click to browse</p>
+            </div>
+          )}
         </div>
 
-        {clipboardError && (
-          <p className="text-xs text-amber-500 mb-2">
-            Clipboard access denied — please paste manually (Ctrl+V in the box above).
-          </p>
+        {/* Error */}
+        {parseError && (
+          <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2.5">
+            <AlertCircle size={15} className="shrink-0 mt-0.5" />
+            <span>{parseError}</span>
+          </div>
         )}
 
-        <button
-          onClick={handleConfirm}
-          disabled={!isReady}
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 rounded-xl transition-colors"
-        >
-          <CheckCircle2 size={16} /> Use this resume
-        </button>
+        {/* Paste fallback */}
+        {!showPaste ? (
+          <button
+            onClick={() => setShowPaste(true)}
+            className="w-full text-xs text-gray-400 hover:text-gray-600 py-1 transition-colors"
+          >
+            Or paste resume text instead →
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <textarea
+              autoFocus
+              value={pasteText}
+              onChange={e => { setPasteText(e.target.value); setParseError(null) }}
+              className="w-full h-40 text-xs border border-gray-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300 font-mono"
+              placeholder="Paste your resume text here…"
+            />
+            <button
+              onClick={handlePasteConfirm}
+              disabled={pasteText.trim().split(/\s+/).filter(Boolean).length < 10}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+            >
+              Use this resume
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

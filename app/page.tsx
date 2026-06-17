@@ -17,9 +17,13 @@ import type { ResumeData, StyleConfig, TailorResponse } from '@/types/resume'
 const ResumePreview = dynamic(() => import('@/components/ResumePreview'), { ssr: false })
 
 const FREE_USE_KEY = 'rbt_free_used'
+const RESUME_TEXT_KEY = 'rbt_resume_text'
+const RESUME_FILE_KEY = 'rbt_resume_filename'
+const RESUME_DATA_KEY = 'rbt_resume_data'
 
 export default function Home() {
   const [resumeText, setResumeText] = useState('')
+  const [resumeFileName, setResumeFileName] = useState<string | null>(null)
   const [resume, setResume] = useState<ResumeData | null>(null)
   const [jd, setJd] = useState('')
   const [customPrompt, setCustomPrompt] = useState('')
@@ -33,8 +37,17 @@ export default function Home() {
   const [showAuthGate, setShowAuthGate] = useState(false)
   const [freeUsed, setFreeUsed] = useState(false)
 
+  // Restore saved state on mount
   useEffect(() => {
     setFreeUsed(localStorage.getItem(FREE_USE_KEY) === 'true')
+    const savedText = localStorage.getItem(RESUME_TEXT_KEY)
+    const savedFile = localStorage.getItem(RESUME_FILE_KEY)
+    const savedData = localStorage.getItem(RESUME_DATA_KEY)
+    if (savedText) setResumeText(savedText)
+    if (savedFile) setResumeFileName(savedFile)
+    if (savedData) {
+      try { setResume(JSON.parse(savedData)) } catch { /* ignore */ }
+    }
   }, [])
 
   const updateStyles = useCallback((s: StyleConfig) => {
@@ -51,20 +64,28 @@ export default function Home() {
     [resumeWithStyles]
   )
 
-  const handleResumeLoaded = (text: string) => {
+  const handleResumeLoaded = (text: string, fileName?: string) => {
     setResumeText(text)
+    setResumeFileName(fileName ?? null)
     setResume(null)
     setNotes(null)
     setError(null)
+    localStorage.setItem(RESUME_TEXT_KEY, text)
+    localStorage.setItem(RESUME_FILE_KEY, fileName ?? '')
+    localStorage.removeItem(RESUME_DATA_KEY)
   }
 
   const handleChangeResume = () => {
     setResumeText('')
+    setResumeFileName(null)
     setResume(null)
     setNotes(null)
     setJd('')
     setCustomPrompt('')
     setError(null)
+    localStorage.removeItem(RESUME_TEXT_KEY)
+    localStorage.removeItem(RESUME_FILE_KEY)
+    localStorage.removeItem(RESUME_DATA_KEY)
   }
 
   const handleTailor = async () => {
@@ -88,11 +109,13 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error ?? 'Request failed')
 
       const tailored = data as TailorResponse
-      setResume({ ...tailored, styles })
+      const newResume = { ...tailored, styles }
+      setResume(newResume)
       setNotes(tailored.notes)
       setNotesOpen(true)
 
       localStorage.setItem(FREE_USE_KEY, 'true')
+      localStorage.setItem(RESUME_DATA_KEY, JSON.stringify(newResume))
       setFreeUsed(true)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
@@ -163,7 +186,7 @@ export default function Home() {
 
         {/* upload content */}
         <main className="flex-1 overflow-auto">
-          <ResumeUpload onResume={handleResumeLoaded} />
+          <ResumeUpload onResume={(text, fileName) => handleResumeLoaded(text, fileName)} />
         </main>
       </div>
     )
@@ -195,16 +218,15 @@ export default function Home() {
         {/* Resume status */}
         <div className="px-4 py-2.5 border-b border-gray-100">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileText size={13} className="text-green-600" />
-              <span className="text-xs font-medium text-gray-700">Resume loaded</span>
-              <span className="text-[10px] text-gray-400">
-                {resumeText.trim().split(/\s+/).length} words
+            <div className="flex items-center gap-2 min-w-0">
+              <FileText size={13} className="text-green-600 shrink-0" />
+              <span className="text-xs font-medium text-gray-700 truncate">
+                {resumeFileName ?? 'Resume saved'}
               </span>
             </div>
             <button
               onClick={handleChangeResume}
-              className="text-[10px] text-blue-500 hover:text-blue-700"
+              className="text-[10px] text-blue-500 hover:text-blue-700 shrink-0 ml-2"
             >
               Change
             </button>
