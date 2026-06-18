@@ -6,10 +6,87 @@ import AvatarDropdown from './AvatarDropdown'
 import type { StyleConfig } from '@/types/resume'
 import { DEFAULT_STYLES } from '@/types/resume'
 
-const FONT_LIST = [
-  'IBM Plex Sans Condensed', 'IBM Plex Sans', 'Inter', 'Roboto',
-  'Open Sans', 'Lato', 'Montserrat', 'Source Sans 3',
-  'DM Sans', 'Poppins', 'Merriweather', 'Playfair Display', 'Georgia',
+const WEIGHT_NAME: Record<number, string> = {
+  300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'SemiBold', 700: 'Bold',
+}
+
+const FONT_GROUPS = [
+  {
+    label: 'Modern Sans',
+    fonts: [
+      { family: 'Inter',             weights: [300, 400, 500, 600, 700] },
+      { family: 'DM Sans',           weights: [300, 400, 500, 600, 700] },
+      { family: 'Plus Jakarta Sans', weights: [300, 400, 500, 600, 700] },
+      { family: 'Nunito Sans',       weights: [300, 400, 600, 700] },
+      { family: 'Outfit',            weights: [300, 400, 500, 600, 700] },
+      { family: 'Figtree',           weights: [300, 400, 500, 600, 700] },
+    ],
+  },
+  {
+    label: 'Classic Sans',
+    fonts: [
+      { family: 'Open Sans',    weights: [300, 400, 600, 700] },
+      { family: 'Roboto',       weights: [300, 400, 500, 700] },
+      { family: 'Lato',         weights: [300, 400, 700] },
+      { family: 'Source Sans 3',weights: [300, 400, 600, 700] },
+      { family: 'Noto Sans',    weights: [300, 400, 600, 700] },
+    ],
+  },
+  {
+    label: 'Geometric',
+    fonts: [
+      { family: 'Montserrat',  weights: [300, 400, 500, 600, 700] },
+      { family: 'Poppins',     weights: [300, 400, 500, 600, 700] },
+      { family: 'Raleway',     weights: [300, 400, 500, 600, 700] },
+      { family: 'Josefin Sans',weights: [300, 400, 600, 700] },
+      { family: 'Nunito',      weights: [300, 400, 600, 700] },
+    ],
+  },
+  {
+    label: 'Condensed',
+    fonts: [
+      { family: 'IBM Plex Sans Condensed', weights: [300, 400, 500, 600, 700] },
+      { family: 'Barlow Condensed',        weights: [300, 400, 500, 600, 700] },
+      { family: 'Roboto Condensed',        weights: [300, 400, 500, 600, 700] },
+    ],
+  },
+  {
+    label: 'Humanist',
+    fonts: [
+      { family: 'IBM Plex Sans', weights: [300, 400, 500, 600, 700] },
+      { family: 'Cabin',         weights: [400, 500, 600, 700] },
+      { family: 'PT Sans',       weights: [400, 700] },
+    ],
+  },
+  {
+    label: 'Serif',
+    fonts: [
+      { family: 'Merriweather',    weights: [300, 400, 700] },
+      { family: 'Playfair Display',weights: [400, 500, 600, 700] },
+      { family: 'Lora',            weights: [400, 500, 600, 700] },
+      { family: 'EB Garamond',     weights: [400, 500, 600, 700] },
+      { family: 'Crimson Pro',     weights: [300, 400, 600, 700] },
+      { family: 'Spectral',        weights: [300, 400, 600, 700] },
+    ],
+  },
+  {
+    label: 'Monospace',
+    fonts: [
+      { family: 'JetBrains Mono', weights: [300, 400, 500, 600, 700] },
+      { family: 'Fira Code',      weights: [300, 400, 500, 600, 700] },
+      { family: 'IBM Plex Mono',  weights: [300, 400, 500, 600, 700] },
+      { family: 'Space Mono',     weights: [400, 700] },
+    ],
+  },
+  {
+    label: 'System',
+    fonts: [
+      { family: 'Georgia',       weights: [400, 700] },
+      { family: 'Arial',         weights: [400, 700] },
+      { family: 'Helvetica',     weights: [400, 700] },
+      { family: 'Times New Roman',weights: [400, 700] },
+    ],
+  },
 ]
 
 interface StepperProps {
@@ -78,15 +155,28 @@ export default function TopBar({ styles, onStyleChange, session, credits, onBuyC
       {/* Style controls */}
       {showStyleControls && (
         <div className="flex items-center gap-2 flex-1 overflow-x-auto scrollbar-hide">
-          {/* Font family */}
+          {/* Font family + weight (grouped) */}
           <div className="flex flex-col items-start gap-0.5 shrink-0">
             <span className="text-[9px] text-gray-400 uppercase tracking-wide leading-none">Font</span>
             <select
-              value={styles.fontFamily}
-              onChange={e => set({ fontFamily: e.target.value })}
-              className="text-[11px] font-medium text-gray-800 bg-gray-100 border-none rounded-md px-2 py-0.5 h-[26px] focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
+              value={`${styles.fontFamily}|${styles.fontWeight ?? 400}`}
+              onChange={e => {
+                const [family, w] = e.target.value.split('|')
+                set({ fontFamily: family, fontWeight: parseInt(w) })
+              }}
+              className="text-[11px] font-medium text-gray-800 bg-gray-100 border-none rounded-md px-2 py-0.5 h-[26px] focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer max-w-[200px]"
             >
-              {FONT_LIST.map(f => <option key={f} value={f}>{f}</option>)}
+              {FONT_GROUPS.map(group => (
+                <optgroup key={group.label} label={`── ${group.label}`}>
+                  {group.fonts.map(font =>
+                    font.weights.map(w => (
+                      <option key={`${font.family}|${w}`} value={`${font.family}|${w}`}>
+                        {font.family} · {WEIGHT_NAME[w] ?? w}
+                      </option>
+                    ))
+                  )}
+                </optgroup>
+              ))}
             </select>
           </div>
 

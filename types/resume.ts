@@ -31,6 +31,7 @@ export interface UpskillingItem {
 
 export interface StyleConfig {
   fontFamily: string
+  fontWeight: number     // 300 | 400 | 500 | 600 | 700
   baseFontSize: number   // pt
   lineHeight: number
   sectionSpacing: number // px gap between sections
@@ -39,6 +40,7 @@ export interface StyleConfig {
 
 export const DEFAULT_STYLES: StyleConfig = {
   fontFamily: 'IBM Plex Sans Condensed',
+  fontWeight: 400,
   baseFontSize: 8.7,
   lineHeight: 1.25,
   sectionSpacing: 6,

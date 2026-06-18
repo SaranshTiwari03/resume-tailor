@@ -1,28 +1,50 @@
 import type { ResumeData } from '@/types/resume'
 
 const GOOGLE_FONT_MAP: Record<string, string | null> = {
-  'IBM Plex Sans Condensed': 'IBM+Plex+Sans+Condensed:wght@400;500;600;700',
-  'IBM Plex Sans': 'IBM+Plex+Sans:wght@400;500;600;700',
-  'Inter': 'Inter:wght@400;500;600;700',
-  'Roboto': 'Roboto:wght@400;500;700',
-  'Open Sans': 'Open+Sans:wght@400;600;700',
-  'Lato': 'Lato:wght@400;700',
-  'Montserrat': 'Montserrat:wght@400;500;600;700',
-  'Raleway': 'Raleway:wght@400;500;600;700',
-  'Source Sans 3': 'Source+Sans+3:wght@400;600;700',
-  'Nunito': 'Nunito:wght@400;600;700',
-  'Poppins': 'Poppins:wght@400;500;600;700',
-  'DM Sans': 'DM+Sans:wght@400;500;700',
-  'Noto Sans': 'Noto+Sans:wght@400;600;700',
-  'PT Sans': 'PT+Sans:wght@400;700',
-  'Merriweather': 'Merriweather:wght@400;700',
-  'Playfair Display': 'Playfair+Display:wght@400;600;700',
-  'Georgia': null,
-  'Arial': null,
-  'Helvetica': null,
-  'Times New Roman': null,
-  'Garamond': null,
-  'Calibri': null,
+  // Modern Sans
+  'Inter':                   'Inter:wght@300;400;500;600;700',
+  'DM Sans':                 'DM+Sans:wght@300;400;500;600;700',
+  'Plus Jakarta Sans':       'Plus+Jakarta+Sans:wght@300;400;500;600;700',
+  'Nunito Sans':             'Nunito+Sans:wght@300;400;600;700',
+  'Outfit':                  'Outfit:wght@300;400;500;600;700',
+  'Figtree':                 'Figtree:wght@300;400;500;600;700',
+  // Classic Sans
+  'Open Sans':               'Open+Sans:wght@300;400;600;700',
+  'Roboto':                  'Roboto:wght@300;400;500;700',
+  'Lato':                    'Lato:wght@300;400;700',
+  'Source Sans 3':           'Source+Sans+3:wght@300;400;600;700',
+  'Noto Sans':               'Noto+Sans:wght@300;400;600;700',
+  'PT Sans':                 'PT+Sans:wght@400;700',
+  // Geometric
+  'Montserrat':              'Montserrat:wght@300;400;500;600;700',
+  'Poppins':                 'Poppins:wght@300;400;500;600;700',
+  'Raleway':                 'Raleway:wght@300;400;500;600;700',
+  'Josefin Sans':            'Josefin+Sans:wght@300;400;600;700',
+  'Nunito':                  'Nunito:wght@300;400;600;700',
+  // Condensed
+  'IBM Plex Sans Condensed': 'IBM+Plex+Sans+Condensed:wght@300;400;500;600;700',
+  'Barlow Condensed':        'Barlow+Condensed:wght@300;400;500;600;700',
+  'Roboto Condensed':        'Roboto+Condensed:wght@300;400;500;600;700',
+  // Humanist
+  'IBM Plex Sans':           'IBM+Plex+Sans:wght@300;400;500;600;700',
+  'Cabin':                   'Cabin:wght@400;500;600;700',
+  // Serif
+  'Merriweather':            'Merriweather:wght@300;400;700',
+  'Playfair Display':        'Playfair+Display:wght@400;500;600;700',
+  'Lora':                    'Lora:wght@400;500;600;700',
+  'EB Garamond':             'EB+Garamond:wght@400;500;600;700',
+  'Crimson Pro':             'Crimson+Pro:wght@300;400;600;700',
+  'Spectral':                'Spectral:wght@300;400;600;700',
+  // Monospace
+  'JetBrains Mono':          'JetBrains+Mono:wght@300;400;500;600;700',
+  'Fira Code':               'Fira+Code:wght@300;400;500;600;700',
+  'IBM Plex Mono':           'IBM+Plex+Mono:wght@300;400;500;600;700',
+  'Space Mono':              'Space+Mono:wght@400;700',
+  // System (no Google Font needed)
+  'Georgia':                 null,
+  'Arial':                   null,
+  'Helvetica':               null,
+  'Times New Roman':         null,
 }
 
 function googleFontLink(family: string): string {
@@ -56,6 +78,7 @@ function pinIcon() {
 export function buildResumeHtml(data: ResumeData, printMode = false): string {
   const { styles } = data
   const ff = `'${styles.fontFamily}', Arial, sans-serif`
+  const fw = styles.fontWeight ?? 400
   const fs = styles.baseFontSize
   const lh = styles.lineHeight
   const ss = styles.sectionSpacing
@@ -76,6 +99,7 @@ export function buildResumeHtml(data: ResumeData, printMode = false): string {
     body {
       font-family: ${ff};
       font-size: ${fs}pt;
+      font-weight: ${fw};
       line-height: ${lh};
       color: #000;
       background: #fff;
