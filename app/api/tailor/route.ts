@@ -65,7 +65,15 @@ Return ONLY valid JSON matching this exact shape:
   "notes": "string — 2-3 sentences explaining what you changed and why"
 }`
 
+const COST_BASIC = 2
+const COST_PROMPT = 4
+
 export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Sign in to tailor your resume.' }, { status: 401 })
+  }
+
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   try {
     const body = await req.json()
@@ -80,6 +88,18 @@ export async function POST(req: NextRequest) {
     }
     if (!jd || jd.trim().length < 20) {
       return NextResponse.json({ error: 'Job description is too short.' }, { status: 400 })
+    }
+
+    const cost = customPrompt?.trim() ? COST_PROMPT : COST_BASIC
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { credits: true },
+    })
+    if (!user || user.credits < cost) {
+      return NextResponse.json(
+        { error: 'Insufficient credits', creditsRemaining: user?.credits ?? 0, cost },
+        { status: 402 }
+      )
     }
 
     let userMessage = `RESUME TEXT:\n${resumeText.trim()}\n\n---\n\nJOB DESCRIPTION:\n${jd.trim()}`
@@ -150,16 +170,16 @@ export async function POST(req: NextRequest) {
       notes: String(p.notes ?? ''),
     }
 
-    // Increment tailorCount for logged-in users
-    const session = await getServerSession(authOptions)
-    if (session?.user?.id) {
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: { tailorCount: { increment: 1 } },
-      }).catch(() => {}) // non-fatal
-    }
+    const updated = await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        credits: { decrement: cost },
+        tailorCount: { increment: 1 },
+      },
+      select: { credits: true },
+    }).catch(() => null)
 
-    return NextResponse.json(result)
+    return NextResponse.json({ ...result, creditsRemaining: updated?.credits ?? null })
   } catch (err) {
     console.error('[tailor]', err)
     return NextResponse.json(

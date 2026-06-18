@@ -7,21 +7,24 @@ import Link from 'next/link'
 import {
   Loader2, Sparkles, Download, RotateCcw,
   ChevronDown, ChevronUp, SlidersHorizontal,
-  FileText, PenLine, LogIn, LogOut, ShieldCheck,
+  FileText, PenLine, LogIn, LogOut, ShieldCheck, Zap,
 } from 'lucide-react'
 import StyleControls from '@/components/StyleControls'
 import ResumeUpload from '@/components/ResumeUpload'
 import AuthGateModal from '@/components/AuthGateModal'
+import InsufficientCreditsModal from '@/components/InsufficientCreditsModal'
 import { buildResumeHtml } from '@/lib/resume-template'
 import { DEFAULT_STYLES } from '@/types/resume'
 import type { ResumeData, StyleConfig, TailorResponse } from '@/types/resume'
 
 const ResumePreview = dynamic(() => import('@/components/ResumePreview'), { ssr: false })
 
-const FREE_USE_KEY = 'rbt_free_used'
 const RESUME_TEXT_KEY = 'rbt_resume_text'
 const RESUME_FILE_KEY = 'rbt_resume_filename'
 const RESUME_DATA_KEY = 'rbt_resume_data'
+
+const COST_BASIC = 2
+const COST_PROMPT = 4
 
 export default function Home() {
   const { data: session } = useSession()
@@ -37,11 +40,12 @@ export default function Home() {
   const [showStyles, setShowStyles] = useState(false)
   const [styles, setStyles] = useState<StyleConfig>(DEFAULT_STYLES)
   const [showAuthGate, setShowAuthGate] = useState(false)
-  const [freeUsed, setFreeUsed] = useState(false)
+  const [showCreditsModal, setShowCreditsModal] = useState(false)
+  const [credits, setCredits] = useState<number | null>(null)
+  const [insufficientCost, setInsufficientCost] = useState(COST_BASIC)
 
-  // Restore saved state on mount
+  // Restore saved resume from localStorage
   useEffect(() => {
-    setFreeUsed(localStorage.getItem(FREE_USE_KEY) === 'true')
     const savedText = localStorage.getItem(RESUME_TEXT_KEY)
     const savedFile = localStorage.getItem(RESUME_FILE_KEY)
     const savedData = localStorage.getItem(RESUME_DATA_KEY)
@@ -52,9 +56,16 @@ export default function Home() {
     }
   }, [])
 
-  const updateStyles = useCallback((s: StyleConfig) => {
-    setStyles(s)
-  }, [])
+  // Fetch credits whenever session becomes available
+  useEffect(() => {
+    if (!session?.user?.id) { setCredits(null); return }
+    fetch('/api/user/credits')
+      .then(r => r.json())
+      .then(d => { if (typeof d.credits === 'number') setCredits(d.credits) })
+      .catch(() => {})
+  }, [session])
+
+  const updateStyles = useCallback((s: StyleConfig) => setStyles(s), [])
 
   const resumeWithStyles = useMemo(
     () => (resume ? { ...resume, styles } : null),
@@ -93,9 +104,15 @@ export default function Home() {
   const handleTailor = async () => {
     if (!resumeText.trim() || !jd.trim()) return
 
-    // Logged-in users always allowed; anonymous users get 1 free
-    if (!session && freeUsed) {
+    if (!session) {
       setShowAuthGate(true)
+      return
+    }
+
+    const cost = customPrompt.trim() ? COST_PROMPT : COST_BASIC
+    if (credits !== null && credits < cost) {
+      setInsufficientCost(cost)
+      setShowCreditsModal(true)
       return
     }
 
@@ -109,17 +126,22 @@ export default function Home() {
         body: JSON.stringify({ resumeText, jd, customPrompt }),
       })
       const data = await res.json()
+
+      if (res.status === 402) {
+        setInsufficientCost(data.cost ?? cost)
+        if (typeof data.creditsRemaining === 'number') setCredits(data.creditsRemaining)
+        setShowCreditsModal(true)
+        return
+      }
       if (!res.ok) throw new Error(data.error ?? 'Request failed')
 
-      const tailored = data as TailorResponse
+      const tailored = data as TailorResponse & { creditsRemaining?: number }
       const newResume = { ...tailored, styles }
       setResume(newResume)
       setNotes(tailored.notes)
       setNotesOpen(true)
-
-      localStorage.setItem(FREE_USE_KEY, 'true')
+      if (typeof tailored.creditsRemaining === 'number') setCredits(tailored.creditsRemaining)
       localStorage.setItem(RESUME_DATA_KEY, JSON.stringify(newResume))
-      setFreeUsed(true)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
@@ -153,7 +175,6 @@ export default function Home() {
   if (!resumeText) {
     return (
       <div className="flex h-screen bg-gray-50 text-gray-900 overflow-hidden">
-        {/* minimal sidebar */}
         <aside className="w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col px-5 pt-5">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -162,13 +183,13 @@ export default function Home() {
             <span className="font-bold text-gray-900">Resume Tailor</span>
           </div>
           <p className="text-xs text-gray-400 leading-relaxed mt-1">
-            Paste your resume, drop in a job description, and get a tailored version in seconds.
+            Upload your resume, drop in a job description, and get a tailored version in seconds.
           </p>
 
           <div className="mt-6 space-y-3 text-xs text-gray-500">
             <div className="flex items-start gap-2">
               <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center shrink-0 font-bold mt-0.5">1</span>
-              <span>Paste your resume text</span>
+              <span>Upload your resume PDF</span>
             </div>
             <div className="flex items-start gap-2">
               <span className="w-5 h-5 rounded-full bg-gray-200 text-gray-500 text-[10px] flex items-center justify-center shrink-0 font-bold mt-0.5">2</span>
@@ -180,14 +201,27 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-auto pb-5">
-            <div className="bg-blue-50 rounded-xl p-3 text-xs text-blue-700">
-              <strong>1 free tailor</strong> — no account needed to start.
-            </div>
+          <div className="mt-auto pb-5 space-y-2">
+            {session ? (
+              <div className="bg-green-50 rounded-xl p-3 text-xs text-green-700">
+                <span className="font-semibold">{credits ?? '…'} credits</span> remaining
+              </div>
+            ) : (
+              <div className="bg-blue-50 rounded-xl p-3 text-xs text-blue-700">
+                <strong>Sign up free</strong> — get 7 credits to start.
+              </div>
+            )}
+            {!session && (
+              <Link
+                href="/signup"
+                className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 rounded-lg transition-colors"
+              >
+                Sign up free
+              </Link>
+            )}
           </div>
         </aside>
 
-        {/* upload content */}
         <main className="flex-1 overflow-auto">
           <ResumeUpload onResume={(text, fileName) => handleResumeLoaded(text, fileName)} />
         </main>
@@ -199,6 +233,13 @@ export default function Home() {
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 overflow-hidden">
       {showAuthGate && <AuthGateModal onClose={() => setShowAuthGate(false)} />}
+      {showCreditsModal && (
+        <InsufficientCreditsModal
+          creditsRemaining={credits ?? 0}
+          cost={insufficientCost}
+          onClose={() => setShowCreditsModal(false)}
+        />
+      )}
 
       {/* ── SIDEBAR ── */}
       <aside className="w-80 shrink-0 flex flex-col bg-white border-r border-gray-200 overflow-y-auto">
@@ -229,13 +270,19 @@ export default function Home() {
               </Link>
             )}
           </div>
-          <p className="text-[11px] text-gray-400 mt-0.5">
-            {session
-              ? <span className="text-green-600 font-medium">{session.user.email}</span>
-              : freeUsed
-                ? <span className="text-amber-500 font-medium">Free tailor used — sign up to continue</span>
-                : '1 free tailor · no account needed'}
-          </p>
+
+          {/* Credits badge */}
+          {session ? (
+            <div className="flex items-center gap-1.5 mt-1">
+              <Zap size={11} className={credits !== null && credits <= 2 ? 'text-red-500' : 'text-amber-500'} />
+              <span className={`text-xs font-semibold ${credits !== null && credits <= 2 ? 'text-red-500' : 'text-gray-700'}`}>
+                {credits ?? '…'} credits
+              </span>
+              <span className="text-[10px] text-gray-400">· 2 basic / 4 with prompt</span>
+            </div>
+          ) : (
+            <p className="text-[11px] text-amber-500 font-medium mt-1">Sign in to tailor your resume</p>
+          )}
         </div>
 
         {/* Resume status */}
@@ -270,10 +317,11 @@ export default function Home() {
 
           <label className="text-xs font-medium text-gray-600 uppercase tracking-wide flex items-center gap-1.5">
             <PenLine size={10} /> Custom Instructions
+            <span className="text-[10px] text-amber-500 font-normal normal-case">(costs 4 credits)</span>
           </label>
           <textarea
             className="w-full h-20 text-xs border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-300"
-            placeholder='Any specific asks — e.g. "Highlight leadership. Remove the Cybrom job. Keep summary under 2 lines."'
+            placeholder='e.g. "Highlight leadership. Remove the Cybrom job. Keep summary under 2 lines."'
             value={customPrompt}
             onChange={e => setCustomPrompt(e.target.value)}
           />
@@ -288,7 +336,11 @@ export default function Home() {
             {loading ? (
               <><Loader2 size={13} className="animate-spin" /> Tailoring…</>
             ) : (
-              <><Sparkles size={13} /> {resume ? 'Re-tailor' : 'Tailor with AI'}</>
+              <><Sparkles size={13} /> {resume ? 'Re-tailor' : 'Tailor with AI'}
+                <span className="text-[10px] opacity-70 font-normal">
+                  ({customPrompt.trim() ? COST_PROMPT : COST_BASIC} credits)
+                </span>
+              </>
             )}
           </button>
 
