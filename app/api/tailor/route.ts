@@ -66,8 +66,7 @@ Return ONLY valid JSON matching this exact shape:
     "title": "string",
     "url": "string — project URL or empty",
     "bullet": "string — one-sentence description of what it is and what it does"
-  }],
-  "notes": "string — 2-3 sentences explaining what you changed and why"
+  }]
 }`
 
 const COST_BASIC = 2
@@ -176,7 +175,6 @@ export async function POST(req: NextRequest) {
             bullet: String(proj.bullet ?? ''),
           }))
         : [],
-      notes: String(p.notes ?? ''),
     }
 
     const updated = await prisma.user.update({

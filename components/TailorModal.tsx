@@ -69,11 +69,15 @@ export default function TailorModal({ fileName, credits, onTailor, onSkip }: Pro
               autoFocus
               required
               value={jd}
-              onChange={e => { setJd(e.target.value); setError(null) }}
+              onChange={e => { setJd(e.target.value.slice(0, 3000)); setError(null) }}
               rows={7}
+              maxLength={3000}
               className="w-full text-sm border border-gray-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300 leading-relaxed"
               placeholder="Paste the job posting, LinkedIn description, recruiter message — anything that describes the role…"
             />
+            <p className={`text-right text-[10px] mt-0.5 ${jd.length >= 2800 ? 'text-amber-500' : 'text-gray-300'}`}>
+              {jd.length}/3000
+            </p>
           </div>
 
           <div className="space-y-1.5">

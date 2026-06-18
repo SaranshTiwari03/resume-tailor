@@ -83,5 +83,4 @@ export interface TailorResponse {
   experience: JobEntry[]
   education: EducationEntry[]
   projects: ProjectEntry[]
-  notes: string
 }

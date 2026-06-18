@@ -1,22 +1,19 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect } from 'react'
-import dynamic from 'next/dynamic'
+import { useState, useCallback, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import {
-  Loader2, Sparkles, Download, RotateCcw,
-  ChevronDown, ChevronUp, FileText, PenLine,
+  Loader2, Sparkles, RotateCcw,
+  FileText, PenLine, ArrowRight,
 } from 'lucide-react'
 import TopBar from '@/components/TopBar'
 import ResumeUpload from '@/components/ResumeUpload'
 import AuthGateModal from '@/components/AuthGateModal'
 import InsufficientCreditsModal from '@/components/InsufficientCreditsModal'
 import TailorModal from '@/components/TailorModal'
-import { buildResumeHtml } from '@/lib/resume-template'
 import { DEFAULT_STYLES } from '@/types/resume'
 import type { ResumeData, StyleConfig, TailorResponse } from '@/types/resume'
-
-const ResumePreview = dynamic(() => import('@/components/ResumePreview'), { ssr: false })
 
 const RESUME_TEXT_KEY = 'rbt_resume_text'
 const RESUME_FILE_KEY = 'rbt_resume_filename'
@@ -27,6 +24,7 @@ const COST_PROMPT = 4
 
 export default function Home() {
   const { data: session } = useSession()
+  const router = useRouter()
 
   const [resumeText, setResumeText] = useState('')
   const [resumeFileName, setResumeFileName] = useState<string | null>(null)
@@ -34,8 +32,6 @@ export default function Home() {
   const [jd, setJd] = useState('')
   const [customPrompt, setCustomPrompt] = useState('')
   const [loading, setLoading] = useState(false)
-  const [notes, setNotes] = useState<string | null>(null)
-  const [notesOpen, setNotesOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [styles, setStyles] = useState<StyleConfig>(DEFAULT_STYLES)
   const [credits, setCredits] = useState<number | null>(null)
@@ -71,20 +67,10 @@ export default function Home() {
 
   const updateStyles = useCallback((s: StyleConfig) => setStyles(s), [])
 
-  const resumeWithStyles = useMemo(
-    () => (resume ? { ...resume, styles } : null),
-    [resume, styles]
-  )
-  const previewHtml = useMemo(
-    () => (resumeWithStyles ? buildResumeHtml(resumeWithStyles) : null),
-    [resumeWithStyles]
-  )
-
   const handleResumeLoaded = (text: string, fileName?: string) => {
     setResumeText(text)
     setResumeFileName(fileName ?? null)
     setResume(null)
-    setNotes(null)
     setError(null)
     localStorage.setItem(RESUME_TEXT_KEY, text)
     localStorage.setItem(RESUME_FILE_KEY, fileName ?? '')
@@ -99,7 +85,6 @@ export default function Home() {
     setResumeText('')
     setResumeFileName(null)
     setResume(null)
-    setNotes(null)
     setJd('')
     setCustomPrompt('')
     setError(null)
@@ -124,7 +109,6 @@ export default function Home() {
 
     setLoading(true)
     setError(null)
-    setNotes(null)
     try {
       const res = await fetch('/api/tailor', {
         method: 'POST',
@@ -144,10 +128,9 @@ export default function Home() {
       const tailored = data as TailorResponse & { creditsRemaining?: number }
       const newResume = { ...tailored, styles }
       setResume(newResume)
-      setNotes(tailored.notes)
-      setNotesOpen(true)
       if (typeof tailored.creditsRemaining === 'number') setCredits(tailored.creditsRemaining)
       localStorage.setItem(RESUME_DATA_KEY, JSON.stringify(newResume))
+      router.push('/editor')
     } finally {
       setLoading(false)
     }
@@ -170,19 +153,6 @@ export default function Home() {
     setCustomPrompt(modalPrompt)
     await runTailor(modalJd, modalPrompt)
     setShowTailorModal(false)
-  }
-
-  const handleDownload = () => {
-    if (!resumeWithStyles) return
-    const html = buildResumeHtml(resumeWithStyles, true)
-    const printHtml = html.replace(
-      '</body>',
-      `<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},800);});<\/script></body>`
-    )
-    const win = window.open('', '_blank')
-    if (!win) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return }
-    win.document.write(printHtml)
-    win.document.close()
   }
 
   // ── UPLOAD SCREEN ──────────────────────────────────────────────────
@@ -356,7 +326,7 @@ export default function Home() {
 
             {resume && (
               <button
-                onClick={() => { setResume(null); setNotes(null); setError(null) }}
+                onClick={() => { setResume(null); setError(null) }}
                 className="w-full flex items-center justify-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 py-1"
               >
                 <RotateCcw size={11} /> Clear tailoring
@@ -364,68 +334,52 @@ export default function Home() {
             )}
           </div>
 
-          {/* AI Notes */}
-          {notes && (
-            <div className="px-4 py-2.5 border-b border-gray-100">
-              <button
-                onClick={() => setNotesOpen(o => !o)}
-                className="flex items-center justify-between w-full text-xs font-semibold text-green-700"
-              >
-                <span>✓ Tailoring complete</span>
-                {notesOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              </button>
-              {notesOpen && (
-                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">{notes}</p>
-              )}
-            </div>
-          )}
-
-          {/* Download */}
+          {/* Open Editor */}
           <div className="px-4 py-3 mt-auto">
             <button
-              onClick={handleDownload}
+              onClick={() => router.push('/editor')}
               disabled={!resume}
               className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold py-2.5 rounded-xl transition-colors"
             >
-              <Download size={13} /> Download PDF
+              <ArrowRight size={13} /> Open in Editor
             </button>
             <p className="text-[10px] text-gray-400 mt-1.5 text-center leading-tight">
-              Opens print dialog → <em>Save as PDF</em> in Chrome to keep links
+              Edit, fine-tune and download your tailored resume
             </p>
           </div>
         </aside>
 
-        {/* ── PREVIEW PANE ── */}
-        <main className="flex-1 overflow-hidden flex flex-col">
-          <div className="h-8 bg-gray-100 border-b border-gray-200 flex items-center px-4 gap-2 shrink-0">
-            <span className="text-xs text-gray-400">Preview</span>
-            {resume && (
-              <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
-                Tailored
-              </span>
-            )}
-            {loading && (
-              <span className="text-[10px] text-blue-500 flex items-center gap-1">
-                <Loader2 size={10} className="animate-spin" /> Tailoring…
-              </span>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-auto bg-gray-300 flex justify-center py-8">
-            {previewHtml ? (
-              <div className="bg-white shadow-xl" style={{ width: '8.5in', minHeight: '11in' }}>
-                <ResumePreview html={previewHtml} />
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center px-8">
-                <div className="w-16 h-16 bg-white rounded-2xl shadow-md flex items-center justify-center mb-4">
-                  <Sparkles size={24} className="text-blue-400" />
+        {/* ── EDITOR PREVIEW ── */}
+        <main className="flex-1 overflow-hidden flex flex-col bg-[#525659]">
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
+            {loading ? (
+              <>
+                <Loader2 size={32} className="text-white/40 animate-spin" />
+                <p className="text-white/60 text-sm font-medium">Tailoring your resume…</p>
+                <p className="text-white/30 text-xs">Opening editor when done</p>
+              </>
+            ) : resume ? (
+              <>
+                <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center">
+                  <Sparkles size={24} className="text-emerald-400" />
                 </div>
-                <p className="text-gray-600 font-semibold mb-1">Your tailored resume will appear here</p>
-                <p className="text-sm text-gray-400">
-                  Paste a job description and hit <strong>Tailor with AI</strong>
-                </p>
-              </div>
+                <p className="text-white/80 font-semibold">Resume tailored</p>
+                <p className="text-white/40 text-xs">Click &quot;Open in Editor&quot; to edit and download</p>
+                <button
+                  onClick={() => router.push('/editor')}
+                  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
+                >
+                  <ArrowRight size={15} /> Open Editor
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center">
+                  <Sparkles size={24} className="text-white/20" />
+                </div>
+                <p className="text-white/50 font-medium text-sm">Tailor your resume to open the editor</p>
+                <p className="text-white/25 text-xs">Paste a job description and hit Tailor with AI</p>
+              </>
             )}
           </div>
         </main>
