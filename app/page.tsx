@@ -57,12 +57,15 @@ export default function Home() {
     }
   }, [])
 
-  // Fetch credits when session loads
+  // Fetch credits when session loads (-1 = unlimited/admin)
   useEffect(() => {
     if (!session?.user?.id) { setCredits(null); return }
     fetch('/api/user/credits')
       .then(r => r.json())
-      .then(d => { if (typeof d.credits === 'number') setCredits(d.credits) })
+      .then(d => {
+        if (d.unlimited) setCredits(-1)
+        else if (typeof d.credits === 'number') setCredits(d.credits)
+      })
       .catch(() => {})
   }, [session])
 
@@ -112,7 +115,8 @@ export default function Home() {
       return
     }
     const cost = tailorPrompt.trim() ? COST_PROMPT : COST_BASIC
-    if (credits !== null && credits < cost) {
+    const unlimited = credits === -1
+    if (!unlimited && credits !== null && credits < cost) {
       setInsufficientCost(cost)
       setShowCreditsModal(true)
       throw new Error('Insufficient credits')

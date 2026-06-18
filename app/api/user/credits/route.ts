@@ -8,9 +8,12 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  if (session.user.role === 'admin') {
+    return NextResponse.json({ credits: null, unlimited: true })
+  }
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { credits: true },
   })
-  return NextResponse.json({ credits: user?.credits ?? 0 })
+  return NextResponse.json({ credits: user?.credits ?? 0, unlimited: false })
 }

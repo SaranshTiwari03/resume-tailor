@@ -20,7 +20,7 @@ export default function TailorModal({ fileName, credits, onTailor, onSkip }: Pro
   const [error, setError] = useState<string | null>(null)
 
   const cost = prompt.trim() ? COST_PROMPT : COST_BASIC
-  const canAfford = credits === null || credits >= cost
+  const canAfford = credits === null || credits === -1 || credits >= cost
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -94,7 +94,7 @@ export default function TailorModal({ fileName, credits, onTailor, onSkip }: Pro
             <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}
 
-          {!canAfford && (
+          {!canAfford && credits !== -1 && (
             <p className="text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-2 flex items-center gap-2">
               <Zap size={13} /> Not enough credits — {credits} remaining, this costs {cost}.
             </p>

@@ -91,15 +91,19 @@ export async function POST(req: NextRequest) {
     }
 
     const cost = customPrompt?.trim() ? COST_PROMPT : COST_BASIC
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { credits: true },
-    })
-    if (!user || user.credits < cost) {
-      return NextResponse.json(
-        { error: 'Insufficient credits', creditsRemaining: user?.credits ?? 0, cost },
-        { status: 402 }
-      )
+    const isAdmin = session.user.role === 'admin'
+
+    if (!isAdmin) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { credits: true },
+      })
+      if (!user || user.credits < cost) {
+        return NextResponse.json(
+          { error: 'Insufficient credits', creditsRemaining: user?.credits ?? 0, cost },
+          { status: 402 }
+        )
+      }
     }
 
     let userMessage = `RESUME TEXT:\n${resumeText.trim()}\n\n---\n\nJOB DESCRIPTION:\n${jd.trim()}`
@@ -173,13 +177,14 @@ export async function POST(req: NextRequest) {
     const updated = await prisma.user.update({
       where: { id: session.user.id },
       data: {
-        credits: { decrement: cost },
+        // Admins get unlimited — only deduct credits for regular users
+        ...(isAdmin ? {} : { credits: { decrement: cost } }),
         tailorCount: { increment: 1 },
       },
       select: { credits: true },
     }).catch(() => null)
 
-    return NextResponse.json({ ...result, creditsRemaining: updated?.credits ?? null })
+    return NextResponse.json({ ...result, creditsRemaining: isAdmin ? null : (updated?.credits ?? null) })
   } catch (err) {
     console.error('[tailor]', err)
     return NextResponse.json(

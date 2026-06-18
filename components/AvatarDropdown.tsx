@@ -74,26 +74,36 @@ export default function AvatarDropdown({ name, email, credits, onBuyCredits }: P
 
           {/* Credits */}
           <div className="px-4 py-2.5 border-b border-gray-100">
-            <div className="flex items-center justify-between">
+            {credits === -1 ? (
               <div className="flex items-center gap-1.5">
-                <Zap size={13} className={low ? 'text-red-500' : 'text-amber-500'} />
-                <span className={`text-sm font-semibold ${low ? 'text-red-500' : 'text-gray-800'}`}>
-                  {credits ?? '…'} credits
-                </span>
+                <Zap size={13} className="text-violet-500" />
+                <span className="text-sm font-semibold text-violet-600">∞ Unlimited</span>
+                <span className="text-[10px] text-gray-400 ml-1">Admin</span>
               </div>
-              <button
-                onClick={() => { setOpen(false); onBuyCredits() }}
-                className="text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
-              >
-                <CreditCard size={11} /> Buy more
-              </button>
-            </div>
-            <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${low ? 'bg-red-400' : 'bg-amber-400'}`}
-                style={{ width: `${Math.min(100, ((credits ?? 0) / 50) * 100)}%` }}
-              />
-            </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Zap size={13} className={low ? 'text-red-500' : 'text-amber-500'} />
+                    <span className={`text-sm font-semibold ${low ? 'text-red-500' : 'text-gray-800'}`}>
+                      {credits ?? '…'} credits
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => { setOpen(false); onBuyCredits() }}
+                    className="text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <CreditCard size={11} /> Buy more
+                  </button>
+                </div>
+                <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${low ? 'bg-red-400' : 'bg-amber-400'}`}
+                    style={{ width: `${Math.min(100, ((credits ?? 0) / 50) * 100)}%` }}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {/* Actions */}
