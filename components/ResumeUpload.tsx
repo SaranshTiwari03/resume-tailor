@@ -7,6 +7,34 @@ interface ResumeUploadProps {
   onResume: (text: string, fileName?: string) => void
 }
 
+async function parsePdfClientSide(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer()
+
+  // Dynamic import keeps pdfjs out of the initial bundle
+  const pdfjsLib = await import('pdfjs-dist')
+
+  // Worker URL must match the installed version exactly — use unpkg CDN
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
+
+  const pdf = await pdfjsLib.getDocument({
+    data: new Uint8Array(arrayBuffer),
+    disableFontFace: true,
+  }).promise
+
+  const pages: string[] = []
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i)
+    const content = await page.getTextContent()
+    const pageText = content.items
+      .map((item) => ('str' in item ? (item as { str: string }).str : ''))
+      .join(' ')
+    pages.push(pageText)
+  }
+
+  return pages.join('\n').trim()
+}
+
 export default function ResumeUpload({ onResume }: ResumeUploadProps) {
   const [dragging, setDragging] = useState(false)
   const [parsing, setParsing] = useState(false)
@@ -20,17 +48,24 @@ export default function ResumeUpload({ onResume }: ResumeUploadProps) {
       setParseError('Please upload a PDF file.')
       return
     }
+    if (file.size > 5 * 1024 * 1024) {
+      setParseError('File too large (max 5MB).')
+      return
+    }
     setParseError(null)
     setParsing(true)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const res = await fetch('/api/parse-resume', { method: 'POST', body: fd })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to parse PDF')
-      onResume(data.text, file.name)
+      const text = await parsePdfClientSide(file)
+      if (text.length < 100) {
+        throw new Error('Could not extract text from this PDF. Try pasting your resume text instead.')
+      }
+      onResume(text, file.name)
     } catch (e) {
-      setParseError(e instanceof Error ? e.message : 'Failed to parse PDF. Try pasting your resume text instead.')
+      setParseError(
+        e instanceof Error
+          ? e.message
+          : 'Failed to parse PDF. Try pasting your resume text instead.'
+      )
     } finally {
       setParsing(false)
     }
@@ -64,7 +99,7 @@ export default function ResumeUpload({ onResume }: ResumeUploadProps) {
       </div>
 
       <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">Upload your resume</h2>
-      <p className="text-sm text-gray-400 mb-8 text-center">PDF format · saved to your browser</p>
+      <p className="text-sm text-gray-400 mb-8 text-center">PDF format · parsed in your browser</p>
 
       <div className="w-full max-w-md space-y-3">
         {/* Drop zone */}
@@ -102,7 +137,6 @@ export default function ResumeUpload({ onResume }: ResumeUploadProps) {
           )}
         </div>
 
-        {/* Error */}
         {parseError && (
           <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2.5">
             <AlertCircle size={15} className="shrink-0 mt-0.5" />
@@ -110,7 +144,6 @@ export default function ResumeUpload({ onResume }: ResumeUploadProps) {
           </div>
         )}
 
-        {/* Paste fallback */}
         {!showPaste ? (
           <button
             onClick={() => setShowPaste(true)}
