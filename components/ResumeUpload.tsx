@@ -13,9 +13,8 @@ async function parsePdfClientSide(file: File): Promise<string> {
   // Dynamic import keeps pdfjs out of the initial bundle
   const pdfjsLib = await import('pdfjs-dist')
 
-  // Worker URL must match the installed version exactly — use unpkg CDN
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
+  // Worker is copied to /public during build (see package.json build script)
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
   const pdf = await pdfjsLib.getDocument({
     data: new Uint8Array(arrayBuffer),
