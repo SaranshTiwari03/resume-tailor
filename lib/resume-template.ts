@@ -142,10 +142,6 @@ export function buildResumeHtml(data: ResumeData, printMode = false): string {
   const titleFs = Math.round((fs + 0.7) * 10) / 10
 
   const co = data.contact
-  // Only show university/college-level education — skip school (10th/12th)
-  const collegeEdu = data.education.filter(
-    e => !/\b(10th|12th|x|xii|secondary|high\s*school|senior\s*secondary|matriculation|ssc|hsc)\b/i.test(e.degree)
-  )
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -194,21 +190,30 @@ export function buildResumeHtml(data: ResumeData, printMode = false): string {
     .job-co { font-size: ${fs}pt; margin-bottom: 1.5px; }
     .job-ul { list-style: disc; padding-left: 15px; }
     .job-ul li { text-align: justify; margin-bottom: 1px; }
+    .bottom { margin-top: ${ss}px; }
+    .bottom::after { content: ''; display: block; clear: both; }
+    .edu-col { float: left; width: 35%; padding-right: 10px; }
+    .proj-col { float: left; width: 65%; padding-left: 6px; }
     .edu-e, .proj-e { page-break-inside: avoid; break-inside: avoid; }
-    .edu-e { margin-bottom: 4px; }
+    .col-title {
+      font-weight: 700; font-size: ${titleFs}pt; text-transform: uppercase;
+      letter-spacing: 0.4px; border-bottom: 1.5px solid ${ac};
+      padding-bottom: 2px; margin-bottom: 3px; color: ${ac};
+    }
+    .edu-e { margin-bottom: 3px; }
     .edu-deg { font-weight: 700; font-size: ${titleFs}pt; }
     .edu-school { font-style: italic; font-size: ${fs}pt; }
     .edu-meta { font-size: ${fs}pt; }
     .edu-cw { font-size: ${Math.max(fs - 0.2, 7)}pt; margin-top: 1px; }
     .edu-cwl { font-weight: 700; }
-    .proj-e { margin-bottom: 4px; }
+    .proj-e { margin-bottom: 3px; }
     .proj-t { font-weight: 700; font-size: ${titleFs}pt; }
     .proj-t a { color: #000; font-weight: bold; text-decoration: none; }
     .proj-ul { list-style: disc; padding-left: 15px; }
     .proj-ul li { font-size: ${fs}pt; text-align: justify; }
     @media print {
       @page { size: letter; margin: 0; }
-      body { padding: ${Math.max(0.3, pm - 0.12)}in ${pm}in; }
+      body { padding: 0.37in 0.5in 0.24in 0.5in; }
     }
   </style>
 </head>
@@ -220,7 +225,8 @@ export function buildResumeHtml(data: ResumeData, printMode = false): string {
   <div class="hdr-contact">
     ${co.phone ? `<span class="ci">${phoneIcon()} ${co.phone}</span>` : ''}
     ${co.email ? `<span class="ci">${emailIcon()} <a href="mailto:${co.email}">${co.email}</a></span>` : ''}
-    ${co.linkedin.url ? `<span class="ci">${linkedinIcon()} <a href="${co.linkedin.url}">${co.linkedin.url}</a></span>` : ''}
+    ${co.linkedin.url ? `<span class="ci">${linkedinIcon()} <a href="${co.linkedin.url}">${co.linkedin.label || co.linkedin.url}</a></span>` : ''}
+    ${co.portfolio.url ? `<span class="ci">${globeIcon()} <a href="${co.portfolio.url}">${co.portfolio.label || 'Portfolio'}</a></span>` : ''}
     ${co.github.url ? `<span class="ci">${githubIcon()} <a href="${co.github.url}">${co.github.label || co.github.url}</a></span>` : ''}
     ${co.location ? `<span class="ci">${pinIcon()} ${co.location}</span>` : ''}
   </div>
@@ -262,26 +268,25 @@ ${data.upskilling.length > 0 ? `
   </div>`).join('')}
 </div>
 
-<div class="sec">
-  <div class="sec-title">EDUCATION</div>
-  ${collegeEdu.map(e => `
-  <div class="edu-e">
-    <div class="job-hdr">
+<div class="bottom">
+  <div class="edu-col">
+    <div class="col-title">EDUCATION</div>
+    ${data.education.map(e => `
+    <div class="edu-e">
       <div class="edu-deg">${e.degree}</div>
-      <div class="job-date">${e.dateRange}</div>
-    </div>
-    <div class="edu-school">${e.school}${e.cgpa ? ` &nbsp;&bull;&nbsp; CGPA: ${e.cgpa}` : ''}</div>
-    ${e.coursework ? `<div class="edu-cw"><span class="edu-cwl">Relevant Coursework:</span> ${e.coursework}</div>` : ''}
-  </div>`).join('')}
-</div>
-
-<div class="sec">
-  <div class="sec-title">PROJECTS</div>
-  ${data.projects.map(p => `
-  <div class="proj-e">
-    ${p.url ? `<div class="proj-t"><a href="${p.url}">${p.title}</a></div>` : `<div class="proj-t">${p.title}</div>`}
-    <ul class="proj-ul"><li>${p.bullet}</li></ul>
-  </div>`).join('')}
+      <div class="edu-school">${e.school}</div>
+      <div class="edu-meta">${e.dateRange}${e.cgpa ? ` | CGPA: ${e.cgpa}` : ''}</div>
+      ${e.coursework ? `<div class="edu-cw"><span class="edu-cwl">Relevant Coursework:</span> ${e.coursework}</div>` : ''}
+    </div>`).join('')}
+  </div>
+  <div class="proj-col">
+    <div class="col-title">PROJECTS</div>
+    ${data.projects.map(p => `
+    <div class="proj-e">
+      ${p.url ? `<div class="proj-t"><a href="${p.url}">${p.title}</a></div>` : `<div class="proj-t">${p.title}</div>`}
+      <ul class="proj-ul"><li>${p.bullet}</li></ul>
+    </div>`).join('')}
+  </div>
 </div>
 
 </body>
