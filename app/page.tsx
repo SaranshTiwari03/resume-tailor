@@ -349,36 +349,61 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* ── EDITOR PREVIEW ── */}
-        <main className="flex-1 overflow-hidden flex flex-col bg-[#525659]">
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
+        {/* ── RIGHT PANEL ── */}
+        <main
+          className="flex-1 overflow-hidden flex flex-col"
+          style={{
+            backgroundColor: '#2b2b2b',
+            backgroundImage: 'radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
+          }}
+        >
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 text-center px-10">
             {loading ? (
               <>
                 <Loader2 size={32} className="text-white/40 animate-spin" />
                 <p className="text-white/60 text-sm font-medium">Tailoring your resume…</p>
-                <p className="text-white/30 text-xs">Opening editor when done</p>
+                <p className="text-white/30 text-xs">You&apos;ll be taken to the editor automatically</p>
               </>
             ) : resume ? (
               <>
-                <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center">
-                  <Sparkles size={24} className="text-emerald-400" />
+                {/* Tailored resume card */}
+                <div className="bg-white/8 border border-white/10 rounded-2xl px-8 py-6 max-w-xs w-full flex flex-col items-center gap-4">
+                  <div className="w-14 h-14 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                    <Sparkles size={22} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-white/90 font-semibold text-base leading-snug">{resume.name}</p>
+                    <p className="text-emerald-400 text-xs font-medium mt-0.5">Resume tailored ✓</p>
+                  </div>
+                  <button
+                    onClick={() => router.push('/editor')}
+                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+                  >
+                    <ArrowRight size={14} /> Continue in Editor
+                  </button>
                 </div>
-                <p className="text-white/80 font-semibold">Resume tailored</p>
-                <p className="text-white/40 text-xs">Click &quot;Open in Editor&quot; to edit and download</p>
-                <button
-                  onClick={() => router.push('/editor')}
-                  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
-                >
-                  <ArrowRight size={15} /> Open Editor
-                </button>
+
+                {/* Secondary options */}
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-white/25 text-xs">or</p>
+                  <button
+                    onClick={() => { setResume(null); setError(null); localStorage.removeItem(RESUME_DATA_KEY) }}
+                    className="flex items-center gap-1.5 text-white/40 hover:text-white/70 text-xs transition-colors"
+                  >
+                    <RotateCcw size={11} /> Tailor a new resume
+                  </button>
+                </div>
               </>
             ) : (
               <>
                 <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center">
-                  <Sparkles size={24} className="text-white/20" />
+                  <FileText size={24} className="text-white/15" />
                 </div>
-                <p className="text-white/50 font-medium text-sm">Tailor your resume to open the editor</p>
-                <p className="text-white/25 text-xs">Paste a job description and hit Tailor with AI</p>
+                <div>
+                  <p className="text-white/45 font-medium text-sm">No resume tailored yet</p>
+                  <p className="text-white/20 text-xs mt-1">Upload your resume and paste a job description,<br />then hit Tailor with AI</p>
+                </div>
               </>
             )}
           </div>
