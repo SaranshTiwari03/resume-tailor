@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { signOut } from 'next-auth/react'
-import { LogOut, Zap, CreditCard } from 'lucide-react'
+import { LogOut, Zap, CreditCard, Settings, ShieldCheck, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
 
 interface Props {
   name?: string | null
   email?: string | null
+  role?: string | null
   credits: number | null
   onBuyCredits: () => void
 }
@@ -32,7 +34,7 @@ function avatarColor(str?: string | null) {
   return BG_COLORS[h % BG_COLORS.length]
 }
 
-export default function AvatarDropdown({ name, email, credits, onBuyCredits }: Props) {
+export default function AvatarDropdown({ name, email, role, credits, onBuyCredits }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -46,7 +48,8 @@ export default function AvatarDropdown({ name, email, credits, onBuyCredits }: P
 
   const label = initials(name, email)
   const bg = avatarColor(name ?? email)
-  const low = credits !== null && credits <= 2
+  const low = credits !== null && credits !== -1 && credits <= 2
+  const isAdmin = role === 'admin'
 
   return (
     <div ref={ref} className="relative">
@@ -58,27 +61,32 @@ export default function AvatarDropdown({ name, email, credits, onBuyCredits }: P
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 w-60 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+        <div className="absolute right-0 top-10 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+
           {/* User info */}
-          <div className="px-4 py-3 border-b border-gray-100">
-            <div className="flex items-center gap-2.5">
-              <div className={`w-9 h-9 rounded-full ${bg} text-white text-sm font-bold flex items-center justify-center shrink-0`}>
+          <div className="px-4 py-3.5 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full ${bg} text-white text-sm font-bold flex items-center justify-center shrink-0`}>
                 {label}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-gray-900 truncate">{name ?? 'User'}</p>
                 <p className="text-xs text-gray-400 truncate">{email}</p>
               </div>
+              {isAdmin && (
+                <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold shrink-0 flex items-center gap-0.5">
+                  <ShieldCheck size={9} /> Admin
+                </span>
+              )}
             </div>
           </div>
 
           {/* Credits */}
-          <div className="px-4 py-2.5 border-b border-gray-100">
+          <div className="px-4 py-3 border-b border-gray-100">
             {credits === -1 ? (
               <div className="flex items-center gap-1.5">
                 <Zap size={13} className="text-violet-500" />
                 <span className="text-sm font-semibold text-violet-600">∞ Unlimited</span>
-                <span className="text-[10px] text-gray-400 ml-1">Admin</span>
               </div>
             ) : (
               <>
@@ -93,7 +101,7 @@ export default function AvatarDropdown({ name, email, credits, onBuyCredits }: P
                     onClick={() => { setOpen(false); onBuyCredits() }}
                     className="text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
                   >
-                    <CreditCard size={11} /> Buy more
+                    <CreditCard size={10} /> Buy more
                   </button>
                 </div>
                 <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -106,11 +114,40 @@ export default function AvatarDropdown({ name, email, credits, onBuyCredits }: P
             )}
           </div>
 
-          {/* Actions */}
+          {/* Navigation links */}
           <div className="py-1">
+            <Link
+              href="/settings"
+              onClick={() => setOpen(false)}
+              className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-2.5">
+                <Settings size={14} className="text-gray-400" />
+                Settings
+              </div>
+              <ChevronRight size={13} className="text-gray-300" />
+            </Link>
+
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-amber-700 hover:bg-amber-50 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <ShieldCheck size={14} className="text-amber-500" />
+                  User Management
+                </div>
+                <ChevronRight size={13} className="text-amber-300" />
+              </Link>
+            )}
+          </div>
+
+          {/* Sign out */}
+          <div className="py-1 border-t border-gray-100">
             <button
               onClick={() => signOut()}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-red-500 transition-colors"
             >
               <LogOut size={14} className="text-gray-400" />
               Sign out

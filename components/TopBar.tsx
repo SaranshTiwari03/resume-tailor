@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Sparkles, RotateCcw, LogIn, ShieldCheck, Minus, Plus } from 'lucide-react'
+import { Sparkles, RotateCcw, LogIn, Minus, Plus } from 'lucide-react'
 import AvatarDropdown from './AvatarDropdown'
 import type { StyleConfig } from '@/types/resume'
 import { DEFAULT_STYLES } from '@/types/resume'
@@ -287,14 +287,10 @@ export default function TopBar({ styles, onStyleChange, session, credits, onBuyC
       <div className="flex items-center gap-3 shrink-0 ml-auto">
         {session ? (
           <>
-            {session.user.role === 'admin' && (
-              <Link href="/admin" className="text-[11px] text-amber-600 hover:underline flex items-center gap-1">
-                <ShieldCheck size={12} /> Admin
-              </Link>
-            )}
             <AvatarDropdown
               name={session.user.name}
               email={session.user.email}
+              role={session.user.role}
               credits={credits}
               onBuyCredits={onBuyCredits}
             />

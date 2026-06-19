@@ -241,6 +241,7 @@ export default function EditorPage() {
             <AvatarDropdown
               name={session.user.name}
               email={session.user.email}
+              role={session.user.role}
               credits={credits}
               onBuyCredits={() => setShowCreditsModal(true)}
             />
