@@ -17,6 +17,7 @@ import InsufficientCreditsModal from '@/components/InsufficientCreditsModal'
 import FloatingToolbar from '@/components/FloatingToolbar'
 import OverlayElement, { type Overlay } from '@/components/OverlayElement'
 import type { EditableIframeHandle } from '@/components/EditableResumeIframe'
+import { FONT_GROUPS, FONT_WEIGHTS, WEIGHT_NAME } from '@/lib/fonts'
 
 const EditableResumeIframe = dynamic(
   () => import('@/components/EditableResumeIframe'),
@@ -27,17 +28,7 @@ const RESUME_DATA_KEY = 'rbt_resume_data'
 let _counter = 0
 const uid = () => `el-${++_counter}`
 
-// Curated font list for inline toolbar (full picker is in TopBar for whole-resume styling)
-const TOOLBAR_FONTS = [
-  'Inter', 'DM Sans', 'Plus Jakarta Sans', 'Outfit', 'Manrope', 'Figtree',
-  'Open Sans', 'Roboto', 'Lato', 'Source Sans 3', 'Noto Sans',
-  'Montserrat', 'Poppins', 'Raleway', 'Nunito', 'Josefin Sans',
-  'IBM Plex Sans Condensed', 'Barlow Condensed', 'Oswald',
-  'Merriweather', 'Playfair Display', 'Lora', 'EB Garamond',
-  'JetBrains Mono', 'Source Code Pro', 'IBM Plex Mono', 'Fira Code',
-]
-
-// ── Toolbar UI primitives ─────────────────────────────────────────────────────
+// ── Toolbar UI primitives (light Canva-style) ──────────────────────────────────
 
 function FmtBtn({
   active, onClick, title, children,
@@ -51,8 +42,10 @@ function FmtBtn({
     <button
       title={title}
       onMouseDown={e => { e.preventDefault(); onClick() }}
-      className={`flex items-center justify-center gap-1 rounded px-1.5 h-7 text-[12px] font-medium transition-colors shrink-0 ${
-        active ? 'bg-white/20 text-white' : 'text-white/55 hover:text-white hover:bg-white/10'
+      className={`flex items-center justify-center gap-1 rounded-md px-1.5 h-7 text-[12px] font-medium transition-colors shrink-0 ${
+        active
+          ? 'bg-gray-200 text-gray-900'
+          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
       }`}
     >
       {children}
@@ -61,7 +54,7 @@ function FmtBtn({
 }
 
 function TbDiv() {
-  return <div className="w-px h-5 bg-white/[0.1] mx-1 shrink-0" />
+  return <div className="w-px h-5 bg-gray-200 mx-1 shrink-0" />
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -78,20 +71,20 @@ export default function EditorPage() {
   const [spaceDown, setSpaceDown] = useState(false)
   const [extraPages, setExtraPages] = useState<string[]>([])
 
-  // Format state (for both toolbars)
+  // Format state
   const [formats, setFormats] = useState({ bold: false, italic: false, underline: false })
   const [colorVal, setColorVal] = useState('#000000')
   const [selFontSize, setSelFontSize] = useState(9)
   const [selFontFamily, setSelFontFamily] = useState('Inter')
+  const [selFontWeight, setSelFontWeight] = useState(400)
 
-  // Floating mini toolbar position (restored)
+  // Floating mini toolbar position
   const [toolbarPos, setToolbarPos] = useState<{ x: number; y: number } | null>(null)
 
   const iframeHandle = useRef<EditableIframeHandle>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const zoomRef = useRef(zoom)
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null)
-  // Saved iframe selection range so toolbar interactions don't lose it
   const savedRangeRef = useRef<Range | null>(null)
 
   // ── Load resume ───────────────────────────────────────────────────────────
@@ -139,11 +132,11 @@ export default function EditorPage() {
   }, [])
 
   // ── Selection callback ────────────────────────────────────────────────────
-  // Fires on every selectionchange inside the iframe. Updates floating toolbar
-  // position, format button states, and detected font/size at cursor.
+  // Fires on every selectionchange (including cursor click with no selection).
+  // Updates floating toolbar position, format buttons, and detected font/size/weight.
   const handleSelectionChange = useCallback(
     (rect: DOMRect | null, iframeEl: HTMLIFrameElement | null) => {
-      // Floating mini toolbar position
+      // Floating mini toolbar: only show when text is selected
       if (rect && iframeEl && rect.width > 0) {
         const ir = iframeEl.getBoundingClientRect()
         const s = zoomRef.current
@@ -161,20 +154,25 @@ export default function EditorPage() {
         underline: d.queryCommandState('underline'),
       })
 
-      // Save selection range for toolbar use
+      // Save range for toolbar interactions
       const sel = d.getSelection()
       if (sel && sel.rangeCount > 0) {
         savedRangeRef.current = sel.getRangeAt(0).cloneRange()
 
-        // Detect computed font size + family at cursor position
+        // Detect font, size, and weight at cursor/selection position
         const node = sel.getRangeAt(0).startContainer
         const el = (node.nodeType === Node.TEXT_NODE ? node.parentElement : node) as Element | null
         if (el && iframeEl?.contentWindow) {
           const cs = iframeEl.contentWindow.getComputedStyle(el)
+
           const px = parseFloat(cs.fontSize)
-          if (!isNaN(px)) setSelFontSize(Math.round(px * 0.75)) // px → pt
+          if (!isNaN(px)) setSelFontSize(Math.round(px * 0.75))
+
           const fam = cs.fontFamily.split(',')[0].replace(/['"]/g, '').trim()
           if (fam) setSelFontFamily(fam)
+
+          const fw = parseInt(cs.fontWeight)
+          if (!isNaN(fw)) setSelFontWeight(fw)
         }
       }
     },
@@ -192,13 +190,12 @@ export default function EditorPage() {
     setColorVal(color); execCmd('foreColor', color)
   }, [execCmd])
 
-  const handleLink = useCallback(() => {
-    const url = window.prompt('Enter link URL:', 'https://')
-    if (url?.trim()) execCmd('createLink', url.trim())
+  const handleLink = useCallback((url?: string) => {
+    const target = url ?? window.prompt('Enter link URL:', 'https://')
+    if (target?.trim()) execCmd('createLink', target.trim())
   }, [execCmd])
 
-  // ── Apply font size to selection (pt) ─────────────────────────────────────
-  // Uses the font[size="7"] trick to inject real CSS pt values.
+  // ── Apply font size (pt) ──────────────────────────────────────────────────
   const applyFontSize = useCallback((pt: number) => {
     const clamped = Math.max(6, Math.min(72, pt))
     setSelFontSize(clamped)
@@ -215,13 +212,33 @@ export default function EditorPage() {
     })
   }, [restoreRange])
 
-  // ── Apply font family to selection ────────────────────────────────────────
+  // ── Apply font family ─────────────────────────────────────────────────────
   const applyFontFamily = useCallback((family: string) => {
     setSelFontFamily(family)
     restoreRange()
     const d = iframeHandle.current?.getDoc()
     if (!d) return
     d.execCommand('fontName', false, family)
+  }, [restoreRange])
+
+  // ── Apply font weight ─────────────────────────────────────────────────────
+  const applyFontWeight = useCallback((weight: number) => {
+    setSelFontWeight(weight)
+    restoreRange()
+    const d = iframeHandle.current?.getDoc()
+    if (!d) return
+    const sel = d.getSelection()
+    if (!sel || !sel.rangeCount || sel.isCollapsed) return
+    const range = sel.getRangeAt(0)
+    const span = d.createElement('span')
+    span.style.fontWeight = String(weight)
+    try {
+      range.surroundContents(span)
+    } catch {
+      const frag = range.extractContents()
+      span.appendChild(frag)
+      range.insertNode(span)
+    }
   }, [restoreRange])
 
   // ── Download ──────────────────────────────────────────────────────────────
@@ -251,6 +268,9 @@ export default function EditorPage() {
     reader.readAsDataURL(file); e.target.value = ''
   }, [])
 
+  // ── Available weights for current font ────────────────────────────────────
+  const availableWeights = FONT_WEIGHTS[selFontFamily] ?? [400, 700]
+
   // ── Loading ───────────────────────────────────────────────────────────────
   if (!resume) {
     return (
@@ -269,13 +289,14 @@ export default function EditorPage() {
       {showCreditsModal && <InsufficientCreditsModal creditsRemaining={credits ?? 0} cost={2} onClose={() => setShowCreditsModal(false)} />}
       <input ref={imageInputRef} type="file" accept="image/*" className="sr-only" onChange={onImageFile} />
 
-      {/* Floating mini-toolbar — appears above selected text (restored) */}
+      {/* Floating mini-toolbar — appears above selected text */}
       <FloatingToolbar
         position={toolbarPos}
         formats={formats}
         colorVal={colorVal}
         onExec={execCmd}
         onColorChange={handleColorChange}
+        onLink={url => handleLink(url)}
       />
 
       {/* ── PRIMARY TOP BAR ──────────────────────────────────────────────────── */}
@@ -288,7 +309,7 @@ export default function EditorPage() {
           <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center shrink-0"><Sparkles size={11} className="text-white" /></div>
           <span className="text-white/80 text-sm font-medium truncate select-text">{resume.name}</span>
           <span className="text-[10px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full font-medium shrink-0">Tailored</span>
-          <span className="text-[10px] text-white/20 hidden lg:block ml-1">Select text to format · Drag grey area to pan · Scroll to zoom</span>
+          <span className="text-[10px] text-white/20 hidden lg:block ml-1">Click text to format · Space+drag to pan · Scroll to zoom</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={handleDownload} className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors">
@@ -300,118 +321,6 @@ export default function EditorPage() {
         </div>
       </header>
 
-      {/* ── CANVA-STYLE FORMATTING TOOLBAR ───────────────────────────────────── */}
-      <div className="h-[44px] bg-[#262626] border-b border-white/[0.07] flex items-center px-3 gap-0.5 shrink-0 z-20 overflow-x-auto">
-
-        {/* Font family */}
-        <select
-          value={selFontFamily}
-          onMouseDown={saveRange}
-          onChange={e => applyFontFamily(e.target.value)}
-          className="h-7 rounded px-2 text-[11px] text-white/80 bg-white/10 border-none focus:outline-none focus:ring-1 focus:ring-blue-500 w-[130px] cursor-pointer shrink-0"
-          title="Font family of selected text"
-        >
-          {TOOLBAR_FONTS.map(f => <option key={f} value={f} className="bg-[#1f1f1f]">{f}</option>)}
-        </select>
-
-        {/* Font size − [n] + */}
-        <div className="flex items-center shrink-0 ml-1.5">
-          <button
-            title="Decrease font size"
-            onMouseDown={e => { e.preventDefault(); applyFontSize(selFontSize - 1) }}
-            className="w-6 h-7 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 rounded-l text-base leading-none transition-colors select-none"
-          >
-            −
-          </button>
-          <input
-            type="number"
-            value={selFontSize}
-            min={6} max={72}
-            title="Font size in pt"
-            onMouseDown={e => { e.stopPropagation(); saveRange() }}
-            onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setSelFontSize(v) }}
-            onBlur={e => { const v = parseInt(e.target.value); if (!isNaN(v)) applyFontSize(v) }}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyFontSize(selFontSize) } }}
-            className="w-9 h-7 text-center text-[11px] text-white/80 bg-white/10 border-none focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          />
-          <button
-            title="Increase font size"
-            onMouseDown={e => { e.preventDefault(); applyFontSize(selFontSize + 1) }}
-            className="w-6 h-7 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 rounded-r text-base leading-none transition-colors select-none"
-          >
-            +
-          </button>
-        </div>
-
-        <TbDiv />
-
-        {/* Text color */}
-        <label
-          className="flex flex-col items-center justify-center w-8 h-7 rounded cursor-pointer text-white/55 hover:text-white hover:bg-white/10 transition-colors shrink-0"
-          title="Text color"
-          onMouseDown={e => e.preventDefault()}
-        >
-          <span className="text-[12px] font-bold leading-none">A</span>
-          <div className="w-4 h-[3px] rounded-sm mt-[3px]" style={{ background: colorVal }} />
-          <input type="color" value={colorVal} onChange={e => handleColorChange(e.target.value)} className="sr-only" />
-        </label>
-
-        <TbDiv />
-
-        {/* Bold / Italic / Underline / Strikethrough */}
-        <FmtBtn active={formats.bold} onClick={() => execCmd('bold')} title="Bold (Ctrl+B)">
-          <span className="font-bold text-[13px]">B</span>
-        </FmtBtn>
-        <FmtBtn active={formats.italic} onClick={() => execCmd('italic')} title="Italic (Ctrl+I)">
-          <span className="italic font-serif text-[13px]">I</span>
-        </FmtBtn>
-        <FmtBtn active={formats.underline} onClick={() => execCmd('underline')} title="Underline (Ctrl+U)">
-          <span className="underline text-[13px]">U</span>
-        </FmtBtn>
-        <FmtBtn active={false} onClick={() => execCmd('strikeThrough')} title="Strikethrough">
-          <span className="line-through text-[13px]">S</span>
-        </FmtBtn>
-
-        <TbDiv />
-
-        {/* Text alignment */}
-        <FmtBtn active={false} onClick={() => execCmd('justifyLeft')} title="Align left">
-          <AlignLeft size={13} />
-        </FmtBtn>
-        <FmtBtn active={false} onClick={() => execCmd('justifyCenter')} title="Align center">
-          <AlignCenter size={13} />
-        </FmtBtn>
-        <FmtBtn active={false} onClick={() => execCmd('justifyRight')} title="Align right">
-          <AlignRight size={13} />
-        </FmtBtn>
-
-        <TbDiv />
-
-        {/* Link */}
-        <FmtBtn active={false} onClick={handleLink} title="Insert hyperlink">
-          <Link2 size={12} /><span className="text-[11px]">Link</span>
-        </FmtBtn>
-
-        <TbDiv />
-
-        {/* Add elements */}
-        <FmtBtn active={false} onClick={addTextBox} title="Add a draggable text box">
-          <Type size={12} /><span className="text-[11px]">Text</span>
-        </FmtBtn>
-        <FmtBtn active={false} onClick={() => imageInputRef.current?.click()} title="Add image or logo">
-          <ImageIcon size={12} /><span className="text-[11px]">Image</span>
-        </FmtBtn>
-
-        <div className="flex-1 min-w-0" />
-
-        <TbDiv />
-
-        {/* Reset view */}
-        <FmtBtn active={false} onClick={() => transformRef.current?.resetTransform()} title="Reset canvas to default position">
-          <RotateCcw size={11} /><span className="text-[11px]">Reset</span>
-        </FmtBtn>
-      </div>
-
       {/* ── CANVAS ───────────────────────────────────────────────────────────── */}
       <div
         className="flex-1 relative overflow-hidden"
@@ -422,6 +331,122 @@ export default function EditorPage() {
           cursor: spaceDown ? 'grab' : 'default',
         }}
       >
+        {/* ── FLOATING CANVA-STYLE TOOLBAR PILL ────────────────────────────── */}
+        <div
+          className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-auto"
+          onMouseDown={e => e.preventDefault()}
+        >
+          <div className="flex items-center gap-0.5 bg-white rounded-2xl shadow-2xl border border-gray-200 px-2 py-1.5 select-none">
+
+            {/* Font family */}
+            <select
+              value={selFontFamily}
+              onMouseDown={e => { e.stopPropagation(); saveRange() }}
+              onChange={e => applyFontFamily(e.target.value)}
+              className="h-7 rounded-lg px-2 text-[12px] text-gray-700 bg-transparent border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-400 w-[138px] cursor-pointer shrink-0"
+              title="Font family"
+            >
+              {FONT_GROUPS.map(group => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.fonts.map(f => (
+                    <option key={f.family} value={f.family}>{f.family}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+
+            {/* Font weight */}
+            <select
+              value={selFontWeight}
+              onMouseDown={e => { e.stopPropagation(); saveRange() }}
+              onChange={e => applyFontWeight(parseInt(e.target.value))}
+              className="h-7 rounded-lg px-2 text-[12px] text-gray-700 bg-transparent border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-400 w-[90px] cursor-pointer shrink-0 ml-1"
+              title="Font weight"
+            >
+              {availableWeights.map(w => (
+                <option key={w} value={w}>{WEIGHT_NAME[w] ?? w}</option>
+              ))}
+            </select>
+
+            {/* Font size − n + */}
+            <div className="flex items-center shrink-0 ml-1 border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                title="Decrease font size"
+                onMouseDown={e => { e.preventDefault(); applyFontSize(selFontSize - 1) }}
+                className="w-6 h-7 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 text-base leading-none transition-colors"
+              >−</button>
+              <input
+                type="number"
+                value={selFontSize}
+                min={6} max={72}
+                title="Font size (pt)"
+                onMouseDown={e => { e.stopPropagation(); saveRange() }}
+                onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setSelFontSize(v) }}
+                onBlur={e => { const v = parseInt(e.target.value); if (!isNaN(v)) applyFontSize(v) }}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyFontSize(selFontSize) } }}
+                className="w-9 h-7 text-center text-[12px] text-gray-700 bg-white border-none focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+              <button
+                title="Increase font size"
+                onMouseDown={e => { e.preventDefault(); applyFontSize(selFontSize + 1) }}
+                className="w-6 h-7 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 text-base leading-none transition-colors"
+              >+</button>
+            </div>
+
+            <TbDiv />
+
+            {/* Text color */}
+            <label
+              className="flex flex-col items-center justify-center w-8 h-7 rounded-lg cursor-pointer text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors shrink-0"
+              title="Text color"
+              onMouseDown={e => e.preventDefault()}
+            >
+              <span className="text-[13px] font-bold leading-none">A</span>
+              <div className="w-4 h-[3px] rounded-sm mt-[2px]" style={{ background: colorVal }} />
+              <input type="color" value={colorVal} onChange={e => handleColorChange(e.target.value)} className="sr-only" />
+            </label>
+
+            <TbDiv />
+
+            {/* B I U S */}
+            <FmtBtn active={formats.bold} onClick={() => execCmd('bold')} title="Bold"><span className="font-bold text-[13px]">B</span></FmtBtn>
+            <FmtBtn active={formats.italic} onClick={() => execCmd('italic')} title="Italic"><span className="italic font-serif text-[13px]">I</span></FmtBtn>
+            <FmtBtn active={formats.underline} onClick={() => execCmd('underline')} title="Underline"><span className="underline text-[13px]">U</span></FmtBtn>
+            <FmtBtn active={false} onClick={() => execCmd('strikeThrough')} title="Strikethrough"><span className="line-through text-[13px]">S</span></FmtBtn>
+
+            <TbDiv />
+
+            {/* Alignment */}
+            <FmtBtn active={false} onClick={() => execCmd('justifyLeft')} title="Align left"><AlignLeft size={13} /></FmtBtn>
+            <FmtBtn active={false} onClick={() => execCmd('justifyCenter')} title="Align center"><AlignCenter size={13} /></FmtBtn>
+            <FmtBtn active={false} onClick={() => execCmd('justifyRight')} title="Align right"><AlignRight size={13} /></FmtBtn>
+
+            <TbDiv />
+
+            {/* Link */}
+            <FmtBtn active={false} onClick={() => handleLink()} title="Insert link">
+              <Link2 size={12} /><span className="text-[11px]">Link</span>
+            </FmtBtn>
+
+            <TbDiv />
+
+            {/* Add Text / Image */}
+            <FmtBtn active={false} onClick={addTextBox} title="Add text box">
+              <Type size={12} /><span className="text-[11px]">Text</span>
+            </FmtBtn>
+            <FmtBtn active={false} onClick={() => imageInputRef.current?.click()} title="Add image">
+              <ImageIcon size={12} /><span className="text-[11px]">Image</span>
+            </FmtBtn>
+
+            <TbDiv />
+
+            {/* Reset view */}
+            <FmtBtn active={false} onClick={() => transformRef.current?.resetTransform()} title="Reset canvas view">
+              <RotateCcw size={11} /><span className="text-[11px]">Reset</span>
+            </FmtBtn>
+          </div>
+        </div>
+
         <TransformWrapper
           initialScale={0.75}
           minScale={0.1}
@@ -495,15 +520,16 @@ export default function EditorPage() {
                     </div>
                   ))}
 
-                  {/* ── + Add page ── */}
-                  <button
-                    className="no-pan flex items-center justify-center gap-2 text-white/40 hover:text-white/80 text-sm transition-all border border-dashed border-white/20 hover:border-white/50 rounded-xl hover:bg-white/5 py-3"
-                    style={{ width: 816 }}
-                    onClick={() => setExtraPages(p => [...p, uid()])}
-                  >
-                    <Plus size={15} />
-                    Add page
-                  </button>
+                  {/* ── + Add blank page button ── */}
+                  <div className="flex justify-center no-pan" style={{ width: 816 }}>
+                    <button
+                      className="flex items-center gap-2 bg-white/90 hover:bg-white text-gray-600 hover:text-gray-900 border border-white/30 hover:border-white/70 text-sm font-medium px-5 py-2.5 rounded-xl shadow-md transition-all"
+                      onClick={() => setExtraPages(p => [...p, uid()])}
+                    >
+                      <Plus size={15} />
+                      Add blank page
+                    </button>
+                  </div>
                 </TransformComponent>
 
                 {/* ── BOTTOM ZOOM PILL ─────────────────────────────────────── */}

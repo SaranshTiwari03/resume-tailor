@@ -36,6 +36,8 @@ export interface StyleConfig {
   lineHeight: number
   sectionSpacing: number // px gap between sections
   jobSpacing: number     // px gap between jobs
+  accentColor: string    // hex — used for section borders and headings
+  pageMargin: number     // inches — top/bottom/side padding
 }
 
 export const DEFAULT_STYLES: StyleConfig = {
@@ -45,6 +47,8 @@ export const DEFAULT_STYLES: StyleConfig = {
   lineHeight: 1.25,
   sectionSpacing: 6,
   jobSpacing: 5,
+  accentColor: '#000000',
+  pageMargin: 0.5,
 }
 
 export interface ResumeData {

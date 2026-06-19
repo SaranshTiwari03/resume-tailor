@@ -133,8 +133,12 @@ export function buildResumeHtml(data: ResumeData, printMode = false): string {
   const lh = styles.lineHeight
   const ss = styles.sectionSpacing
   const js = styles.jobSpacing
+  const ac = styles.accentColor ?? '#000000'
+  const pm = styles.pageMargin ?? 0.5
 
-  const screenPad = printMode ? '0.37in 0.5in 0.24in 0.5in' : '0.39in 0.52in 0.26in 0.52in'
+  const vPad = printMode ? `${Math.max(0.3, pm - 0.12)}in` : `${pm * 0.78}in`
+  const hPad = `${pm}in`
+  const screenPad = `${vPad} ${hPad}`
   const titleFs = Math.round((fs + 0.7) * 10) / 10
 
   const co = data.contact
@@ -155,7 +159,7 @@ export function buildResumeHtml(data: ResumeData, printMode = false): string {
       background: #fff;
       padding: ${screenPad};
     }
-    .hdr-name { font-size: 26pt; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .hdr-name { font-size: 26pt; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 2px; color: ${ac}; }
     .hdr-title { font-size: ${titleFs}pt; font-weight: 500; color: #444; margin-bottom: 4px; letter-spacing: 0.2px; }
     .hdr-contact {
       display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;
@@ -169,8 +173,8 @@ export function buildResumeHtml(data: ResumeData, printMode = false): string {
     .sec { margin-top: ${ss}px; }
     .sec-title {
       font-weight: 700; font-size: ${titleFs}pt; text-transform: uppercase;
-      letter-spacing: 0.4px; border-bottom: 1.5px solid #000;
-      padding-bottom: 2px; margin-bottom: 3px;
+      letter-spacing: 0.4px; border-bottom: 1.5px solid ${ac};
+      padding-bottom: 2px; margin-bottom: 3px; color: ${ac};
     }
     .summary { text-align: justify; }
     .sk-ul { list-style: disc; padding-left: 15px; }
@@ -193,8 +197,8 @@ export function buildResumeHtml(data: ResumeData, printMode = false): string {
     .edu-e, .proj-e { page-break-inside: avoid; break-inside: avoid; }
     .col-title {
       font-weight: 700; font-size: ${titleFs}pt; text-transform: uppercase;
-      letter-spacing: 0.4px; border-bottom: 1.5px solid #000;
-      padding-bottom: 2px; margin-bottom: 3px;
+      letter-spacing: 0.4px; border-bottom: 1.5px solid ${ac};
+      padding-bottom: 2px; margin-bottom: 3px; color: ${ac};
     }
     .edu-e { margin-bottom: 3px; }
     .edu-deg { font-weight: 700; font-size: ${titleFs}pt; }

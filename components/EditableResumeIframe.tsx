@@ -56,14 +56,17 @@ const EditableResumeIframe = forwardRef<EditableIframeHandle, Props>(
       }
       fitHeight()
 
-      // Track text selection inside the iframe
+      // Track text selection inside the iframe.
+      // Always pass the iframe ref so callers can detect font/size at cursor position,
+      // even when no text is selected (collapsed caret). rect is null when collapsed.
       const onSel = () => {
         const sel = d.defaultView?.getSelection()
-        if (!sel || sel.isCollapsed || !sel.rangeCount) {
+        if (!sel || !sel.rangeCount) {
           onSelectionRectRef.current(null, null)
           return
         }
-        onSelectionRectRef.current(sel.getRangeAt(0).getBoundingClientRect(), iframe)
+        const rect = sel.isCollapsed ? null : sel.getRangeAt(0).getBoundingClientRect()
+        onSelectionRectRef.current(rect, iframe)
       }
       d.addEventListener('selectionchange', onSel)
 
